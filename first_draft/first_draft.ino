@@ -103,8 +103,12 @@ void readDeboncedPin(Player *argPlayer)
 //Determine the changing of the score when the player pushed the button
 void reactToButtonPressure(Player *argPlayer)
 {
+    static char lastPlayerThatPressed = 200;
+
     if (GAME_RUNNING == gGameState.currentState)
     {
+        //Should press a lot when the LIGHT is ON
+        //Should not press when LIGHT is OFF
         if (REFLEX_FAST_GAME == gGameState.typeOfGame)
         {
             if (TRUE == gGameState.playerShouldPush)
@@ -116,6 +120,8 @@ void reactToButtonPressure(Player *argPlayer)
                 argPlayer->score -=1;
             }
         }
+        
+        //Should press a lot, as fast as possible
         else if (FAST_GAME == gGameState.typeOfGame)
         {
             if (TRUE == gGameState.playerShouldPush)
@@ -124,6 +130,8 @@ void reactToButtonPressure(Player *argPlayer)
             }
         }
         
+        //Should press only once when light is ON
+        //The faster wins
         if (REFLEX_GAME == gGameState.typeOfGame)
         {
             if (TRUE == gGameState.playerShouldPush)
@@ -131,31 +139,37 @@ void reactToButtonPressure(Player *argPlayer)
                 argPlayer->score +=1;
                 gGameState.playerShouldPush =! gGameState.playerShouldPush;
             }
+            //Little trick to avoid someone pushing always
+            else if (argPlayer->playerNumber == lastPlayerThatPressed)
+            {
+                argPlayer->score -=1;
+            }
         }        
         
+        lastPlayerThatPressed = argPlayer->playerNumber;
     }
     else if (MENU == gGameState.currentState)
+    {
+        if (1 == argPlayer->playerNumber)
         {
-            if (1 == argPlayer->playerNumber)
+            gMenuIndexSelect = (gMenuIndexSelect+1)%(NUMBER_OF_LED);
+        }
+        else
+        {
+            if (gMenuIndexSelect < NUMBER_OF_GAME_POSSIBLE)
             {
-                gMenuIndexSelect = (gMenuIndexSelect+1)%(NUMBER_OF_LED);
-            }
-            else
-            {
-                if (gMenuIndexSelect < NUMBER_OF_GAME_POSSIBLE)
+                gGameState.currentState = GAME_STARTING;
+                switch (gMenuIndexSelect)
                 {
-                    gGameState.currentState = GAME_STARTING;
-                    switch (gMenuIndexSelect)
-                    {
-                        case 0  : gGameState.typeOfGame = REFLEX_FAST_GAME; gGamePointRatio=3;  break;
-                        case 1  : gGameState.typeOfGame = FAST_GAME;        gGamePointRatio=3;  break;
-                        case 2  : gGameState.typeOfGame = REFLEX_GAME;      gGamePointRatio=1;  break;
-                        default : gGameState.typeOfGame = REFLEX_FAST_GAME; gGamePointRatio=3;  break;
-                    }
-                    gGameState.gameStartingCounter = 0;
+                    case 0  : gGameState.typeOfGame = REFLEX_FAST_GAME; gGamePointRatio=2;  break;
+                    case 1  : gGameState.typeOfGame = FAST_GAME;        gGamePointRatio=2;  break;
+                    case 2  : gGameState.typeOfGame = REFLEX_GAME;      gGamePointRatio=1;  break;
+                    default : gGameState.typeOfGame = REFLEX_FAST_GAME; gGamePointRatio=3;  break;
                 }
+                gGameState.gameStartingCounter = 0;
             }
         }
+    }
 }
 
 void setGameState()
@@ -163,37 +177,65 @@ void setGameState()
     static long sReflexGameTimer = 0;
     static long sRandomTime = 0;
     static long sGameStartingTimer = 0;
+    static long sGameSmoneWonTimer = 0;
     if (GAME_RUNNING == gGameState.currentState)
     {
-        //Maximum score optained player 2 won
-        if      (SCORE_MAXIMUM+1 <= ((gPlayer2.score - gPlayer1.score)/gGamePointRatio))
+        //Victory conditions:
+        
+        //When REFLEX_FAST_GAME or FAST_GAME one player should have a lot of point more than the other
+        if ((REFLEX_FAST_GAME == gGameState.typeOfGame) ||  (FAST_GAME == gGameState.typeOfGame))
         {
-            gGameState.currentState = SOMEONE_WON;
-            gGameState.playerWinner = PLAYER_TWO;
-        }
-        //Maximum score optained player 1 won
-        else if (SCORE_MAXIMUM+1 <= ((gPlayer1.score - gPlayer2.score)/gGamePointRatio))
-        {
-            gGameState.currentState = SOMEONE_WON;
-            gGameState.playerWinner = PLAYER_ONE;
-        }
-        else
-        {
-            if ((REFLEX_FAST_GAME == gGameState.typeOfGame) ||  (REFLEX_GAME == gGameState.typeOfGame))
+            //Maximum score optained player 2 won
+            if      (SCORE_MAXIMUM+1 <= ((gPlayer2.score - gPlayer1.score)/gGamePointRatio))
             {
-                if ((millis() - sReflexGameTimer) > sRandomTime)
-                {
-                    sReflexGameTimer = millis();
-                    sRandomTime = random(1500, 4000);
-                    gGameState.playerShouldPush =! gGameState.playerShouldPush;
-                }
+                gGameState.currentState = SOMEONE_WON;
+                gGameState.playerWinner = PLAYER_TWO;
+                sGameSmoneWonTimer = millis();
             }
-            else if (FAST_GAME == gGameState.typeOfGame) 
+            //Maximum score optained player 1 won
+            else if (SCORE_MAXIMUM+1 <= ((gPlayer1.score - gPlayer2.score)/gGamePointRatio))
             {
-                gGameState.playerShouldPush =TRUE;
+                gGameState.currentState = SOMEONE_WON;
+                gGameState.playerWinner = PLAYER_ONE;
+                sGameSmoneWonTimer = millis();
             }
+        }
+        //When in REFLEX_GAME: The first to obtain SCORE_MAXIMUM+1 wins
+        else if (REFLEX_GAME == gGameState.typeOfGame)
+        {
+            if      (SCORE_MAXIMUM+1 <= ((gPlayer2.score)/gGamePointRatio))
+            {
+                gGameState.currentState = SOMEONE_WON;
+                gGameState.playerWinner = PLAYER_TWO;
+                sGameSmoneWonTimer = millis();
+            }
+            //Maximum score optained player 1 won
+            else if (SCORE_MAXIMUM+1 <= ((gPlayer1.score)/gGamePointRatio))
+            {
+                gGameState.currentState = SOMEONE_WON;
+                gGameState.playerWinner = PLAYER_ONE;
+                sGameSmoneWonTimer = millis();
+            }            
+        }
+
+        //Determine when the player Should press
+        if ((REFLEX_FAST_GAME == gGameState.typeOfGame) ||  (REFLEX_GAME == gGameState.typeOfGame))
+        {
+            if ((millis() - sReflexGameTimer) > sRandomTime)
+            {
+                sReflexGameTimer = millis();
+                sRandomTime = random(500, 4000);
+                gGameState.playerShouldPush =! gGameState.playerShouldPush;
+            }
+        }
+        else if (FAST_GAME == gGameState.typeOfGame) 
+        {
+            gGameState.playerShouldPush =TRUE;
         }
     }
+
+    //Launches an "animation" with the LED that lasts 4 seconds where LEDS are turned ON one after the Other
+    //To indicated when the game starts
     else if(GAME_STARTING == gGameState.currentState)
     {
         if ((millis() - sGameStartingTimer) > 1000)
@@ -202,6 +244,8 @@ void setGameState()
             gGameState.gameStartingCounter++;
             if (4==gGameState.gameStartingCounter)
             {
+                gPlayer1.score = 0;
+                gPlayer2.score = 0;
                 gGameState.currentState = GAME_RUNNING;
                 gGameState.gameStartingCounter = 0;
             }
@@ -211,8 +255,11 @@ void setGameState()
     {
         sGameStartingTimer = millis();
     }
-        
-    //TODO: determiner ici comment relancer une partie avec les differents modes possibles
+    else if (SOMEONE_WON == gGameState.currentState)
+    {
+        if(millis() - sGameSmoneWonTimer >10000)
+            gGameState.currentState = MENU;
+    }
 }
 
 //Determine the states of the different led of the game depending on the state of the game
@@ -293,6 +340,7 @@ void setLedsStates()
     {
         for(int i =0; i<NUMBER_OF_LED ; i++)
         {
+            //Turn ON LED 6, then 4,5,6,7,8 then 2,3,4,5,6,7,8,9,10 finally 0,1,2,3,4,5,6,7,8,9,10,11,12
             if ((i >= NUMBER_OF_LED/2-gGameState.gameStartingCounter*2) && (i <= NUMBER_OF_LED/2+gGameState.gameStartingCounter*2))
                 digitalWrite(gLedPinsTable[i], HIGH);
             else
@@ -300,6 +348,7 @@ void setLedsStates()
         }        
     }
     
+    //Turn ON the LED that indicates the GAME that could be launched
     else if (MENU == gGameState.currentState)
     {
         for(int i =0; i<NUMBER_OF_LED ; i++)
