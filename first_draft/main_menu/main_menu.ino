@@ -1,4 +1,5 @@
 #include "main_menu.h"
+char sMenuIndexSelect =0;
 
 void setup()
 {
@@ -64,15 +65,15 @@ void reactToButtonPressure(Player *argPlayer)
         //select button has been pushed
         if (1 == argPlayer->playerNumber)
         {
-            gMenuIndexSelect = (gMenuIndexSelect+1)%(NUMBER_OF_GAME_POSSIBLE);
+            sMenuIndexSelect = (sMenuIndexSelect+1)%(NUMBER_OF_GAME_POSSIBLE);
         }
         //Start button has been pushed
         else
         {
-            if (gMenuIndexSelect < NUMBER_OF_GAME_POSSIBLE)
+            if (sMenuIndexSelect < NUMBER_OF_GAME_POSSIBLE)
             {
                 gGameState.currentState = GAME_STARTING;
-                switch (gMenuIndexSelect)
+                switch (sMenuIndexSelect)
                 {
                     case 0  : gGameState.typeOfGame = REFLEX_FAST_GAME; gGamePointRatio=2;  break;
                     case 1  : gGameState.typeOfGame = FAST_GAME;        gGamePointRatio=2;  break;
@@ -109,10 +110,10 @@ void setGameState()
                 //Animation finished: Start the game
                 if (REFLEX_FAST_GAME == gGameState.typeOfGame)
                     reflexBourrinLoop();
-                // else if (FAST_GAME        == gGameState.typeOfGame)
-                    // bourrinLoop();
-                // else if (REFLEX_GAME      == gGameState.typeOfGame)
-                    // reflexLoop();
+                else if (FAST_GAME        == gGameState.typeOfGame)
+                    bourrinLoop();
+                else if (REFLEX_GAME      == gGameState.typeOfGame)
+                    reflexLoop();
             }
         }
     }
@@ -177,7 +178,7 @@ void setLedsStates()
         {
             digitalWrite(gLedPinsTable[i], LOW);
         }
-        digitalWrite(gLedPinsTable[gMenuIndexSelect], HIGH);
+        digitalWrite(gLedPinsTable[sMenuIndexSelect], HIGH);
 
     }
 }

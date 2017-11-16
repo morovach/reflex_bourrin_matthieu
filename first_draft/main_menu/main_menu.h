@@ -40,6 +40,7 @@ struct Player_t
     int ledPin;             // the number of the LED pin
     signed int score;
     char playerNumber;
+    char numberOfPushed;
 };
 
 /*Global variables */
@@ -47,6 +48,4 @@ GameState_t gGameState;
 Player gPlayer1 = {0,0,0,50,30,0,1};
 Player gPlayer2 = {0,0,0,52,34,0,2};
 int gLedPinsTable[NUMBER_OF_LED] = {44,45,2,3,4,5,6,7,8,9,10,11,12};
-char gMenuIndexSelect =0;
-char gGamePointRatio = 3;
-
+char gGamePointRatio = 0;

@@ -1,20 +1,19 @@
 #include "arduino.h"
-static char sReflexBourrinGamePointRatio = 2;
 
-void reflexBourrinLoop()
+void reflexLoop()
 {
     while(1)
     {
-    reflexBourrinReadDeboncedPin(&gPlayer1);
-    reflexBourrinReadDeboncedPin(&gPlayer2);
-    if (GAME_FINISHED == reflexBourrinSetGameState())
+    reflexReadDeboncedPin(&gPlayer1);
+    reflexReadDeboncedPin(&gPlayer2);
+    if (GAME_FINISHED == reflexSetGameState())
         break;
-    reflexBourrinSetLedsStates();
+    reflexSetLedsStates();
     }
 }
 
 //Check if the button has been really pressed and update the score of the player if so
-void reflexBourrinReadDeboncedPin(Player *argPlayer)
+void reflexReadDeboncedPin(Player *argPlayer)
 {
     int reading = digitalRead(argPlayer->buttonPin);
 
@@ -38,7 +37,7 @@ void reflexBourrinReadDeboncedPin(Player *argPlayer)
             if (argPlayer->buttonState == LOW)
             {
                 //The player has pushed the button and the score should be updated
-                reflexBourrinReactToButtonPressure(argPlayer);
+                reflexReactToButtonPressure(argPlayer);
             }
         }
     }
@@ -46,30 +45,32 @@ void reflexBourrinReadDeboncedPin(Player *argPlayer)
 }
 
 //Determine the changing of the score when the player pushed the button
-void reflexBourrinReactToButtonPressure(Player *argPlayer)
+void reflexReactToButtonPressure(Player *argPlayer)
 {
-    //Should press a lot when the LIGHT is ON
-    //Should not press when LIGHT is OFF
+    static char sLastPlayerThatPressed = -1;
+    //Should press only once when light is ON
+    //The faster wins
     if (TRUE == gGameState.playerShouldPush)
     {
         argPlayer->score +=1;
+        gGameState.playerShouldPush =! gGameState.playerShouldPush;
     }
-    else
+    //Little trick to avoid someone pushing always
+    else if (argPlayer->playerNumber == sLastPlayerThatPressed)
     {
         argPlayer->score -=1;
     }
+    sLastPlayerThatPressed = argPlayer->playerNumber;
 }
 
-char reflexBourrinSetGameState()
+char reflexSetGameState()
 {
     static long sReflexGameTimer = 0;
     static long sRandomTime = 0;
 
     //Victory conditions:
-    //When REFLEX_FAST_GAME mode: one player should have a lot of point more than the other
-
-    //Maximum score optained player 2 won
-    if (SCORE_MAXIMUM+1 <= ((gPlayer2.score - gPlayer1.score)/sReflexBourrinGamePointRatio))
+    //When in REFLEX_GAME: The first to obtain SCORE_MAXIMUM+1 wins
+    if (SCORE_MAXIMUM+1 <= (gPlayer2.score))
     {
         gGameState.currentState = SOMEONE_WON;
         gGameState.playerWinner = PLAYER_TWO;
@@ -78,7 +79,7 @@ char reflexBourrinSetGameState()
         return GAME_FINISHED;
     }
     //Maximum score optained player 1 won
-    else if (SCORE_MAXIMUM+1 <= ((gPlayer1.score - gPlayer2.score)/sReflexBourrinGamePointRatio))
+    else if (SCORE_MAXIMUM+1 <= (gPlayer1.score))
     {
         gGameState.currentState = SOMEONE_WON;
         gGameState.playerWinner = PLAYER_ONE;
@@ -93,22 +94,25 @@ char reflexBourrinSetGameState()
         sRandomTime = random(500, 4000);
         gGameState.playerShouldPush =! gGameState.playerShouldPush;
         return GAME_NOT_FINISHED;
-    }
+    }    
 }
 
 //Determine the states of the different led of the game depending on the state of the game
-void reflexBourrinSetLedsStates()
+void reflexSetLedsStates()
 {
     //Button led ON only when player should push
     digitalWrite(gPlayer1.ledPin, gGameState.playerShouldPush);
     digitalWrite(gPlayer2.ledPin, gGameState.playerShouldPush);
 
-    //Only one LED moving according to the score
+    //The nu,ber of LEDs ON reflect the score of the player
+    digitalWrite(gLedPinsTable[NUMBER_OF_LED/2], HIGH);
     for(int i =0; i<NUMBER_OF_LED ; i++)
     {
-        if ((gPlayer2.score - gPlayer1.score)/sReflexBourrinGamePointRatio+6 == i)
-            digitalWrite(gLedPinsTable[i], HIGH);
-        else
-            digitalWrite(gLedPinsTable[i], LOW);
-    }
+    if ((i >= NUMBER_OF_LED/2-gPlayer1.score) && (i <NUMBER_OF_LED/2))
+        digitalWrite(gLedPinsTable[i], HIGH);
+    else if ((i <= NUMBER_OF_LED/2+gPlayer2.score) && (i >NUMBER_OF_LED/2))
+        digitalWrite(gLedPinsTable[i], HIGH);
+    else
+        digitalWrite(gLedPinsTable[i], LOW);
+    } 
 }

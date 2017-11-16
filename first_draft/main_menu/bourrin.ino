@@ -1,20 +1,20 @@
 #include "arduino.h"
-static char sReflexBourrinGamePointRatio = 2;
+static char sBourrinGamePointRatio = 2;
 
-void reflexBourrinLoop()
+void bourrinLoop()
 {
     while(1)
     {
-    reflexBourrinReadDeboncedPin(&gPlayer1);
-    reflexBourrinReadDeboncedPin(&gPlayer2);
-    if (GAME_FINISHED == reflexBourrinSetGameState())
+    bourrinReadDeboncedPin(&gPlayer1);
+    bourrinReadDeboncedPin(&gPlayer2);
+    if (GAME_FINISHED == bourrinSetGameState())
         break;
-    reflexBourrinSetLedsStates();
+    bourrinSetLedsStates();
     }
 }
 
 //Check if the button has been really pressed and update the score of the player if so
-void reflexBourrinReadDeboncedPin(Player *argPlayer)
+void bourrinReadDeboncedPin(Player *argPlayer)
 {
     int reading = digitalRead(argPlayer->buttonPin);
 
@@ -38,7 +38,7 @@ void reflexBourrinReadDeboncedPin(Player *argPlayer)
             if (argPlayer->buttonState == LOW)
             {
                 //The player has pushed the button and the score should be updated
-                reflexBourrinReactToButtonPressure(argPlayer);
+                bourrinReactToButtonPressure(argPlayer);
             }
         }
     }
@@ -46,30 +46,20 @@ void reflexBourrinReadDeboncedPin(Player *argPlayer)
 }
 
 //Determine the changing of the score when the player pushed the button
-void reflexBourrinReactToButtonPressure(Player *argPlayer)
+void bourrinReactToButtonPressure(Player *argPlayer)
 {
-    //Should press a lot when the LIGHT is ON
-    //Should not press when LIGHT is OFF
-    if (TRUE == gGameState.playerShouldPush)
-    {
-        argPlayer->score +=1;
-    }
-    else
-    {
-        argPlayer->score -=1;
-    }
+    //Players should press a lot, as fast as possible
+    argPlayer->score +=1;
 }
 
-char reflexBourrinSetGameState()
+char bourrinSetGameState()
 {
-    static long sReflexGameTimer = 0;
-    static long sRandomTime = 0;
 
     //Victory conditions:
-    //When REFLEX_FAST_GAME mode: one player should have a lot of point more than the other
+    //When FAST_GAME mode: one player should have a lot of point more than the other
 
     //Maximum score optained player 2 won
-    if (SCORE_MAXIMUM+1 <= ((gPlayer2.score - gPlayer1.score)/sReflexBourrinGamePointRatio))
+    if (SCORE_MAXIMUM+1 <= ((gPlayer2.score - gPlayer1.score)/sBourrinGamePointRatio))
     {
         gGameState.currentState = SOMEONE_WON;
         gGameState.playerWinner = PLAYER_TWO;
@@ -78,7 +68,7 @@ char reflexBourrinSetGameState()
         return GAME_FINISHED;
     }
     //Maximum score optained player 1 won
-    else if (SCORE_MAXIMUM+1 <= ((gPlayer1.score - gPlayer2.score)/sReflexBourrinGamePointRatio))
+    else if (SCORE_MAXIMUM+1 <= ((gPlayer1.score - gPlayer2.score)/sBourrinGamePointRatio))
     {
         gGameState.currentState = SOMEONE_WON;
         gGameState.playerWinner = PLAYER_ONE;
@@ -86,27 +76,23 @@ char reflexBourrinSetGameState()
         //return to the menu loop
         return GAME_FINISHED;
     }
-    //Determine when the player Should press
-    else if ((millis() - sReflexGameTimer) > sRandomTime)
+    else
     {
-        sReflexGameTimer = millis();
-        sRandomTime = random(500, 4000);
-        gGameState.playerShouldPush =! gGameState.playerShouldPush;
         return GAME_NOT_FINISHED;
     }
 }
 
 //Determine the states of the different led of the game depending on the state of the game
-void reflexBourrinSetLedsStates()
+void bourrinSetLedsStates()
 {
     //Button led ON only when player should push
-    digitalWrite(gPlayer1.ledPin, gGameState.playerShouldPush);
-    digitalWrite(gPlayer2.ledPin, gGameState.playerShouldPush);
+    blinkLed100ms(gPlayer1.ledPin);
+    blinkLed100ms(gPlayer2.ledPin);
 
     //Only one LED moving according to the score
     for(int i =0; i<NUMBER_OF_LED ; i++)
     {
-        if ((gPlayer2.score - gPlayer1.score)/sReflexBourrinGamePointRatio+6 == i)
+        if ((gPlayer2.score - gPlayer1.score)/sBourrinGamePointRatio+6 == i)
             digitalWrite(gLedPinsTable[i], HIGH);
         else
             digitalWrite(gLedPinsTable[i], LOW);
